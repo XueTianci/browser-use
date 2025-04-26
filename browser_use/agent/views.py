@@ -62,7 +62,7 @@ class AgentSettings(BaseModel):
 		'alt',
 		'aria-expanded',
 	]
-	max_actions_per_step: int = 10
+	max_actions_per_step: int = 1
 
 	tool_calling_method: Optional[ToolCallingMethod] = 'auto'
 	page_extraction_llm: Optional[BaseChatModel] = None
@@ -323,6 +323,10 @@ class AgentHistoryList(BaseModel):
 	def screenshots(self) -> list[str | None]:
 		"""Get all screenshots from history"""
 		return [h.state.screenshot if h.state.screenshot is not None else None for h in self.history]
+	
+	def ori_screenshots(self) -> list[str]:
+		"""Get all ori_screenshots from history"""
+		return [h.state.ori_screenshot if h.state.ori_screenshot is not None else None for h in self.history]
 
 	def action_names(self) -> list[str]:
 		"""Get all action names from history"""
@@ -335,7 +339,7 @@ class AgentHistoryList(BaseModel):
 
 	def model_thoughts(self) -> list[AgentBrain]:
 		"""Get all thoughts from history"""
-		return [h.model_output.current_state for h in self.history if h.model_output]
+		return [str(h.model_output.current_state) for h in self.history if h.model_output]
 
 	def model_outputs(self) -> list[AgentOutput]:
 		"""Get all model outputs from history"""
@@ -350,7 +354,7 @@ class AgentHistoryList(BaseModel):
 			if h.model_output:
 				for action, interacted_element in zip(h.model_output.action, h.state.interacted_element):
 					output = action.model_dump(exclude_none=True)
-					output['interacted_element'] = interacted_element
+					output['interacted_element'] = str(interacted_element) if interacted_element else None
 					outputs.append(output)
 		return outputs
 
@@ -358,7 +362,7 @@ class AgentHistoryList(BaseModel):
 		"""Get all results from history"""
 		results = []
 		for h in self.history:
-			results.extend([r for r in h.result if r])
+			results.extend([str(r) for r in h.result if r])
 		return results
 
 	def extracted_content(self) -> list[str]:

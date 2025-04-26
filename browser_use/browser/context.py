@@ -189,6 +189,8 @@ class BrowserContextConfig(BaseModel):
 
 	force_new_context: bool = False
 
+	initial_url: str | None = None
+
 
 @dataclass
 class CachedStateClickableElementsHashes:
@@ -355,7 +357,7 @@ class BrowserContext:
 
 		# Get or create a page to use
 		pages = context.pages
-
+			
 		self.session = BrowserSession(
 			context=context,
 			cached_state=None,
@@ -402,6 +404,7 @@ class BrowserContext:
 		logger.debug('🫨  Bringing tab to front: %s', active_page)
 		await active_page.bring_to_front()
 		await active_page.wait_for_load_state('load')
+		await active_page.goto(self.config.initial_url, wait_until="load")
 
 		self.active_tab = active_page
 
@@ -939,6 +942,7 @@ class BrowserContext:
 
 		try:
 			await self.remove_highlights()
+			ori_screenshot_b64 = await self.take_screenshot()
 			dom_service = DomService(page)
 			content = await dom_service.get_clickable_elements(
 				focus_element=focus_element,
@@ -978,6 +982,7 @@ class BrowserContext:
 				title=await page.title(),
 				tabs=tabs_info,
 				screenshot=screenshot_b64,
+				ori_screenshot=ori_screenshot_b64,
 				pixels_above=pixels_above,
 				pixels_below=pixels_below,
 			)

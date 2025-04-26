@@ -138,7 +138,9 @@ class Controller(Generic[Context]):
 				if download_path:
 					msg = f'💾  Downloaded file to {download_path}'
 				else:
-					msg = f'🖱️  Clicked button with index {params.index}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
+					# msg = f'🖱️  Clicked button with index {params.index}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
+					print(str(element_node).split("[")[0].strip())
+					msg = f'🖱️  {str(element_node).split("[")[0].strip()} -> CLICK'
 
 				logger.info(msg)
 				logger.debug(f'Element xpath: {element_node.xpath}')
@@ -163,9 +165,11 @@ class Controller(Generic[Context]):
 			element_node = await browser.get_dom_element_by_index(params.index)
 			await browser._input_text_element_node(element_node, params.text)
 			if not has_sensitive_data:
-				msg = f'⌨️  Input {params.text} into index {params.index}'
+				# msg = f'⌨️  Input {params.text} into index {params.index}'
+				msg = f'{str(element_node).split("[")[0].strip()} -> TYPE {params.text}'
 			else:
-				msg = f'⌨️  Input sensitive data into index {params.index}'
+				# msg = f'⌨️  Input sensitive data into index {params.index}'
+				msg = f'{str(element_node).split("[")[0].strip()} -> TYPE {params.text}'
 			logger.info(msg)
 			logger.debug(f'Element xpath: {element_node.xpath}')
 			return ActionResult(extracted_content=msg, include_in_memory=True)

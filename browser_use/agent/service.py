@@ -622,6 +622,7 @@ class Agent(Generic[Context]):
 			tabs=state.tabs,
 			interacted_element=interacted_elements,
 			screenshot=state.screenshot,
+			ori_screenshot=state.ori_screenshot,
 		)
 
 		history_item = AgentHistory(model_output=model_output, result=result, state=state_history, metadata=metadata)

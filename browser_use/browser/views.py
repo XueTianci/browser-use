@@ -33,6 +33,7 @@ class BrowserState(DOMState):
 	title: str
 	tabs: list[TabInfo]
 	screenshot: Optional[str] = None
+	ori_screenshot: Optional[str] = None
 	pixels_above: int = 0
 	pixels_below: int = 0
 	browser_errors: list[str] = field(default_factory=list)
@@ -45,11 +46,13 @@ class BrowserStateHistory:
 	tabs: list[TabInfo]
 	interacted_element: list[DOMHistoryElement | None] | list[None]
 	screenshot: Optional[str] = None
+	ori_screenshot: Optional[str] = None
 
 	def to_dict(self) -> dict[str, Any]:
 		data = {}
 		data['tabs'] = [tab.model_dump() for tab in self.tabs]
 		data['screenshot'] = self.screenshot
+		data["ori_screenshot"] = self.ori_screenshot
 		data['interacted_element'] = [el.to_dict() if el else None for el in self.interacted_element]
 		data['url'] = self.url
 		data['title'] = self.title
