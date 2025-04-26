@@ -184,7 +184,7 @@ def run(input: dict[str, dict], **kwargs: Any) -> dict[str, str]:
     print(f"Task ID: {task_id}")
     print(f"Task: {task}")
 
-    # asyncio.run(run_single_task(task, **kwargs))
+    asyncio.run(run_single_task(task, **kwargs))
     
     results = {}
     results[task_id] = {"trajectory": f"./results/online_mind2web/RUN_ID/{task_id}/result/trajectory", 
