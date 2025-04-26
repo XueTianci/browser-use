@@ -125,7 +125,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+# .env
 .venv
 env/
 venv/
@@ -184,7 +184,7 @@ gcp-login.json
 .vscode
 .ruff_cache
 .idea
-*.txt
+# *.txt
 *.pdf
 *.csv
 *.json
