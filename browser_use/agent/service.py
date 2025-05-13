@@ -373,7 +373,7 @@ class Agent(Generic[Context]):
 	def _set_tool_calling_method(self) -> Optional[ToolCallingMethod]:
 		tool_calling_method = self.settings.tool_calling_method
 		if tool_calling_method == 'auto':
-			if 'deepseek-reasoner' in self.model_name or 'deepseek-r1' in self.model_name:
+			if 'deepseek-reasoner' in self.model_name or 'deepseek-r1' in self.model_name or "DeepSeek-R1" in self.model_name:
 				return 'raw'
 			elif self.chat_model_library == 'ChatGoogleGenerativeAI':
 				return None
@@ -530,6 +530,7 @@ class Agent(Generic[Context]):
 			self.state.last_result = [ActionResult(error='The agent was paused with Ctrl+C', include_in_memory=False)]
 			raise InterruptedError('Step cancelled by user')
 		except Exception as e:
+			print(f'Error in step: {e}')
 			result = await self._handle_step_error(e)
 			self.state.last_result = result
 

@@ -9,11 +9,16 @@ import sys
 from typing import Any, Iterable, List
 import copy
 import asyncio
+from pydantic import SecretStr
 
 import cv2
 import numpy as np
 from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_deepseek import ChatDeepSeek
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_anthropic import ChatAnthropic
+from langchain_together import ChatTogether
 
 sys.path.insert(0, "./browser_use")
 from browser_use import Agent, Browser 
@@ -92,22 +97,76 @@ def decode_and_save_image(b64_img: str, path: Path) -> None:
 
 
 def save_screenshots(
-    urls: list[str],
     screenshots: list[str],
     subdir: Path,
     prefix: str,
 ) -> None:
-    """Save *screenshots* whose corresponding *urls* are valid into *subdir*."""
-    for count, (url, shot) in enumerate(zip(urls, screenshots)):
-        if "chrome-error" in url or url == "about:blank":
+    for count, shot in enumerate(screenshots):
+        if shot == None:
             continue
         decode_and_save_image(shot, subdir / f"{count}_{prefix}.png")
+
+reasoning_models = ["o4-mini-2025-04-16", "o3-2025-04-16"]
+
+def initialize_llm(kwargs):
+    model_name = kwargs["model_name"]
+    reasoning_effort = kwargs.get("reasoning_effort", "medium")
+
+    if model_name in reasoning_models:
+        print(f"Initializing {model_name} with reasoning effort: {reasoning_effort}")
+        return ChatOpenAI(model=model_name, reasoning_effort=reasoning_effort)
+    elif "gemini" in model_name:
+        print(f"Initializing Gemini model: {model_name}")
+        return ChatGoogleGenerativeAI(model=model_name, temperature=0)
+    elif "claude" in model_name:
+        if reasoning_effort == "high":
+            print(f"Initializing Claude with high reasoning effort")
+            return ChatAnthropic(
+                model="claude-3-7-sonnet-20250219",
+                max_tokens=4096 + 4096,
+                thinking={"type": "enabled", "budget_tokens": 4096},
+            )
+        return ChatAnthropic(model=model_name, temperature=0)
+    elif "deepseek" in model_name:
+        print(f"Initializing DeepSeek model: {model_name}")
+        return ChatTogether(model=model_name, temperature=0)
+    else:
+        print(f"Initializing default OpenAI model: {model_name}")
+        return ChatOpenAI(model=model_name, temperature=0)
+
+
+def initialize_agent(task, llm, browser, kwargs):
+    model_name = kwargs["model_name"]
+    if "deepseek" in model_name:
+        use_vision = False
+    else:
+        use_vision = True
+    if model_name in reasoning_models and "claude" not in model_name:
+        json_mode = True
+        print(f"Initializing agent with use_vision={use_vision}, json_mode={json_mode}")
+        return Agent(
+            task=task["confirmed_task"],
+            llm=llm,
+            browser=browser,
+            use_vision=use_vision,
+            save_conversation_path=str(OUTPUT_DIR / "log/conversation.json"),
+            tool_calling_method="json_mode",
+        )
+    else:
+        json_mode = False
+        print(f"Initializing agent with use_vision={use_vision}, json_mode={json_mode}")
+        return Agent(
+            task=task["confirmed_task"],
+            llm=llm,
+            browser=browser,
+            use_vision=use_vision,
+            save_conversation_path=str(OUTPUT_DIR / "log/conversation.json"),
+        )
 
 
 async def run_single_task(task: dict[str, str], **kwargs: Any) -> None:
     """Run the browser agent on a single task contained in *input*."""
-
-    llm = ChatOpenAI(model=kwargs["model_name"], temperature=0)
+    llm = initialize_llm(kwargs)
 
     file_handler = logging.FileHandler(LOG_FILE_PATH)
     LOGGER.addHandler(file_handler)
@@ -122,13 +181,8 @@ async def run_single_task(task: dict[str, str], **kwargs: Any) -> None:
             )
 
             browser = Browser(config=config)
-            agent = Agent(
-                task=task["confirmed_task"],
-                llm=llm,
-                browser=browser,
-                use_vision=True,
-                save_conversation_path=str(OUTPUT_DIR / "log/conversation.json"),
-            )
+
+            agent = initialize_agent(task, llm, browser, kwargs)
 
             result = await agent.run(max_steps=kwargs["max_steps"])
 
@@ -144,7 +198,14 @@ async def run_single_task(task: dict[str, str], **kwargs: Any) -> None:
 
             clean_extracted_content = []
 
-            for content in result_dict["extracted_content"][:-1]:
+            if result_dict["action_names"] and result_dict["action_names"][-1] == "done":
+                temp = result_dict["extracted_content"][:-1]
+                result_dict["final_result_response"] = result_dict["extracted_content"][-1]
+            else:
+                temp = result_dict["extracted_content"]
+                result_dict["final_result_response"] = ""
+
+            for content in temp:
                     cleaned_content = re.sub(r'\\u[a-fA-F0-9]{4}|\\U[a-fA-F0-9]{8}', '', content.encode('unicode_escape').decode('utf-8')).strip()
                     if not cleaned_content.startswith("Extracted page content"):
                         if "->" in cleaned_content:
@@ -160,8 +221,8 @@ async def run_single_task(task: dict[str, str], **kwargs: Any) -> None:
 
             result_dict["action_history"] = clean_extracted_content
 
-            save_screenshots(result.urls(), result.screenshots(), OUTPUT_DIR / "image_inputs", "screenshot")
-            save_screenshots(result.urls(), result.ori_screenshots(), OUTPUT_DIR / "trajectory", "screenshot")
+            save_screenshots(result.screenshots(), OUTPUT_DIR / "image_inputs", "screenshot")
+            save_screenshots(result.ori_screenshots(), OUTPUT_DIR / "trajectory", "screenshot")
             # Write structured results
 
             with open(f"{OUTPUT_DIR}/result.json", "w") as f:
